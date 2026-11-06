@@ -17,7 +17,7 @@ jobs:
     name: PDK tests and quality (Puppet 8)
     runs-on: ubuntu-latest
     container:
-      image: puppet/puppet-dev-tools:4.35.0
+      image: puppet/pdk:3.5.1.1.30.g7d6a7d3@sha256:4e619a10aa1789cd6382850eaba3a0a38222e696fbd888588401a951f49124cf
 
     steps:
       - name: Check out repository
