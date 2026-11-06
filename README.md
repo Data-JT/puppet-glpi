@@ -48,11 +48,22 @@ what GLPI stores and changes only what differs.
 ### How it works
 
 ```text
-Hiera / manifest ──> glpi class ──> glpi_transport.yaml (OAuth client, service user, 0600)
-                                          │
-Puppet agent ──> glpi_* types ──> https://glpi.example.com/api.php (API v2, GraphQL for links)
+On the GLPI server, once:
 
-GLPI server ──> glpi::api_access ──> OAuth client, service user, profile (PHP script, local)
+glpi::api_access   creates the OAuth client and the service user in GLPI
+
+On the node that manages GLPI, every agent run:
+
+Hiera / manifest   declares the class and the resources
+      │
+      ▼
+glpi class         writes glpi_transport.yaml (URL, OAuth client, service user, 0600)
+      │
+      ▼
+glpi_* types       read that file and fetch an OAuth token
+      │
+      ▼
+GLPI API v2        https://glpi.example.com/api.php (GraphQL for links)
 ```
 
 The `glpi` class writes the API connection and the module's ownership settings (marker, purge
