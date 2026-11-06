@@ -2,5 +2,6 @@ fixtures:
   forge_modules:
     stdlib:
       repo: puppetlabs/stdlib
+      ref: "10.1.1"
   symlinks:
     glpi: "#{source_dir}"
