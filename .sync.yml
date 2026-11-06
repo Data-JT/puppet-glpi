@@ -1,0 +1,88 @@
+---
+Gemfile:
+  optional:
+    ':development':
+      - gem: puppet-resource_api
+      - gem: reek
+        version: '~> 6.5'
+      - gem: webmock
+        version: '~> 3.0'
+
+Rakefile:
+  requires:
+    - fileutils
+    - json
+  extras:
+    - |-
+      if Gem.loaded_specs.key? 'reek'
+        require 'reek/rake/task'
+        Reek::Rake::Task.new do |t|
+          t.source_files = 'lib/**/*.rb'
+        end
+      end
+
+      namespace :quality do
+        desc 'Enforce the configured RuboCop offense baseline'
+        task :rubocop do
+          baseline = Integer(ENV.fetch('RUBOCOP_BASELINE', '0'))
+          report = 'tmp/rubocop.json'
+          FileUtils.mkdir_p(File.dirname(report))
+          system('rubocop', '--format', 'json', out: report)
+          offenses = JSON.parse(File.read(report)).fetch('summary').fetch('offense_count')
+          abort "RuboCop found #{offenses} offenses, exceeding baseline #{baseline}" if offenses > baseline
+
+          puts "RuboCop offenses: #{offenses} (baseline: #{baseline})"
+        end
+      end
+
+spec/spec_helper.rb:
+  mock_with: ':rspec'
+  coverage_report: false
+  spec_overrides:
+    - "require 'puppet/resource_api'"
+    - "require 'puppet/resource_api/simple_provider'"
+    - "require 'webmock/rspec'"
+
+.rubocop.yml:
+  default_configs:
+    RSpec/SubjectStub:
+      Description: Provider specs stub the inherited transport accessor to inject
+        the transport double; this is the conventional Resource API testing pattern.
+      Exclude:
+        - spec/unit/puppet/provider/**/*.rb
+        - spec/unit/puppet/transport/**/*.rb
+    RSpec/MessageSpies:
+      Description: Existing specs consistently use the receive style.
+      EnforcedStyle: receive
+
+.gitignore:
+  paths:
+    - '/.local-gems/'
+    - '/.claude/'
+    - '/Claude.md'
+    - '/CLAUDE.md'
+    - '/.agents/'
+    - '/.codex/'
+    - '/.cursorrules'
+    - '/.aider*'
+    - '/reek.json'
+    - '/.superpowers/'
+    - '/docs/superpowers/'
+
+.pdkignore:
+  paths:
+    - '---/..yml'
+    - '/.rubocop.yml'
+    - '/.local-gems/'
+    - '/.claude/'
+    - '/Claude.md'
+    - '/CLAUDE.md'
+    - '/.agents/'
+    - '/.codex/'
+    - '/.cursorrules'
+    - '/.aider*'
+    - '/reek.json'
+    - '/.superpowers/'
+    - '/docs/superpowers/'
+    - '/.githooks/'
+    - '/.reek.yml'

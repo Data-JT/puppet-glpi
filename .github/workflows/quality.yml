@@ -1,0 +1,64 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+env:
+  PDK_DISABLE_ANALYTICS: 'true'
+
+jobs:
+  quality:
+    name: PDK tests and quality (Puppet 8)
+    runs-on: ubuntu-latest
+    container:
+      image: puppet/puppet-dev-tools:4.35.0
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run unit tests
+        run: pdk test unit
+
+      - name: Validate module
+        run: pdk validate
+
+      - name: Generate Ruby coverage
+        run: pdk bundle exec rake spec:simplecov
+
+      - name: Enforce minimum line coverage
+        run: |
+          pdk bundle exec ruby -rjson -e '
+            coverage = JSON.parse(File.read("coverage/.last_run.json")).dig("result", "line")
+            abort "Line coverage #{coverage}% is below 90%" if coverage < 90
+            puts "Line coverage: #{coverage}%"
+          '
+
+      - name: Run Reek
+        run: pdk bundle exec rake reek
+
+      - name: Enforce RuboCop baseline
+        env:
+          RUBOCOP_BASELINE: '0'
+        run: pdk bundle exec rake quality:rubocop
+
+      - name: Verify package contents
+        run: |
+          pdk build --force
+          archive=$(find pkg -maxdepth 1 -name '*.tar.gz' -print -quit)
+          test -n "$archive"
+          ! tar -tzf "$archive" | grep -E '/=$'
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ruby-coverage
+          path: coverage/
+          if-no-files-found: error

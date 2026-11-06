@@ -1,0 +1,42 @@
+{
+  "name": "datajt-glpi",
+  "version": "0.1.0",
+  "author": "datajt",
+  "summary": "Manages GLPI 11 objects declaratively via the GLPI REST API v2.",
+  "license": "Apache-2.0",
+  "source": "https://github.com/Data-JT/puppet-glpi",
+  "project_page": "https://github.com/Data-JT/puppet-glpi",
+  "issues_url": "https://github.com/Data-JT/puppet-glpi/issues",
+  "dependencies": [
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 9.0.0 < 10.0.0"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "Debian",
+      "operatingsystemrelease": [
+        "12",
+        "13"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "puppet",
+      "version_requirement": ">= 8.0.0 < 10.0.0"
+    }
+  ],
+  "tags": [
+    "glpi",
+    "itsm",
+    "asset-management",
+    "inventory",
+    "rest-api",
+    "resource-api"
+  ],
+  "pdk-version": "3.7.0",
+  "template-url": "https://github.com/puppetlabs/pdk-templates#main",
+  "template-ref": "heads/main-0-g1514103"
+}

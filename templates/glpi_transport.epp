@@ -1,0 +1,3 @@
+<%- | Hash $config | -%>
+# Managed by Puppet (class glpi). Read by the glpi_* providers at run time.
+<%= stdlib::to_yaml($config) %>

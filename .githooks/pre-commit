@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v pdk >/dev/null 2>&1; then
+  runner=(pdk bundle exec)
+elif command -v bundle >/dev/null 2>&1; then
+  runner=(bundle exec)
+else
+  echo 'Cannot regenerate REFERENCE.md: install PDK or Bundler first.' >&2
+  exit 1
+fi
+
+"${runner[@]}" rake strings:generate:reference
+git add -- REFERENCE.md

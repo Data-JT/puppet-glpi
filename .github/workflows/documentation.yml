@@ -1,0 +1,38 @@
+name: Documentation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    name: Puppet Strings reference
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@866b91cc020931c510d42e43e498a7f07d335f60 # v1.259.0
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Check generated reference
+        run: bundle exec rake strings:validate:reference
+
+      - name: Assert all resource types are documented
+        run: |
+          for file in $(grep -l '^Puppet::ResourceApi.register_type' lib/puppet/type/*.rb); do
+            t=$(basename "$file" .rb)
+            grep -q "### <a name=\"${t}\"></a>" REFERENCE.md || { echo "missing ${t} in REFERENCE.md"; exit 1; }
+          done

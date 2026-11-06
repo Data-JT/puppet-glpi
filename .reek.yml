@@ -1,0 +1,584 @@
+---
+# Reek configuration. The layout is shared with puppet-proxmox_virtual_environment,
+# puppet-proxmox_backup_server and puppet-proxmox_datacenter_manager.
+#
+# CI runs Reek with a zero-warning baseline, so every exception is explicit,
+# named and commented. Exceptions live only in this file: the code carries no
+# inline :reek: comments.
+#
+# The single `detectors` mapping has two sections. Reek cannot merge two
+# entries for the same detector, so each detector appears in exactly one:
+#
+#   1. Shared base, copied verbatim from the sibling modules: threshold tuning
+#      for the method shapes the Puppet Resource API mandates, and the
+#      exceptions those detectors need in any of the modules. Entries naming
+#      Proxmox classes match nothing here and are kept so the block stays
+#      identical.
+#   2. Module-specific: named, per-location exceptions for this module only.
+#
+# A string under `exclude` matches every context whose full name contains it
+# ("Class" or "Class#method"); a string written as "/.../" is a regular
+# expression.
+detectors:
+  # --- 1. Shared base -------------------------------------------------------
+  DataClump:
+    # The Resource API's create/update/delete callbacks share
+    # (context, name[, should]) by contract: exactly three methods. Raising
+    # max_copies from 2 to 3 stops flagging that mandatory CRUD shape while
+    # still catching a clump across four or more methods.
+    max_copies: 3
+    exclude:
+      # Each transport's HTTP verb helpers share (context, path, body, query).
+      - "/\\APuppet::Transport::Proxmox[A-Za-z]+\\z/"
+      # proxmox_virtual_environment only: providers that pass (context, name)
+      # to one helper beyond the CRUD triple, and the SDN providers that thread
+      # (context, should) and (context, vnet) through their path helpers.
+      - "Puppet::Provider::PveBackupJob::ProxmoxVirtualEnvironment"
+      - "Puppet::Provider::PveRole::ProxmoxVirtualEnvironment"
+      - "Puppet::Provider::PveSdnBaseProvider"
+      - "Puppet::Provider::PveSdnSubnet::ProxmoxVirtualEnvironment"
+      - "Puppet::Provider::PveStorage::ProxmoxVirtualEnvironment"
+      - "Puppet::Provider::PveUser::ProxmoxVirtualEnvironment"
+  LongParameterList:
+    # insync?(context, name, attribute_name, is, should) is the Resource API's
+    # mandated callback signature. Raising max_params from 3 to 5 stops
+    # flagging that contract while still catching six or more parameters.
+    max_params: 5
+    exclude:
+      # Each transport's generic call(context, method, path, body:, query:,
+      # path_params:) is the public request boundary; keyword arguments keep
+      # its call sites clear.
+      - "/\\APuppet::Transport::Proxmox[A-Za-z]+#call\\z/"
+
+  # --- 2. Module-specific (glpi) -------------------------------------------
+  Attribute:
+    # The once-per-process TLS warning flag is the transport class's own state.
+    exclude:
+      - "Puppet::Transport::Glpi#ssl_warning_emitted"
+  BooleanParameter:
+    # write_pending and raw select one of two documented behaviours; fold is the
+    # case-folding switch of Names.key. Each is a keyword, clear at the call site.
+    exclude:
+      - "/\\APuppet::Transport::Glpi#request\\z/"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#unresolved_members"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#report_unresolved"
+      - "PuppetX::Glpi::ItemLinks#report_unresolved_links"
+      - "PuppetX::Glpi::Names#self.key"
+  ControlParameter:
+    # The Resource API's insync? callback is told which attribute to compare, and
+    # answering only for some of them is the contract. The others take a value
+    # whose nil or empty form means "not managed" or "none", which is GLPI's model.
+    exclude:
+      - "/\\APuppet::Transport::Glpi#request\\z/"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#unresolved_members"
+      - "Puppet::Provider::GlpiBaseProvider#insync?"
+      - "Puppet::Provider::GlpiBaseProvider#wanted_value"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#current_id"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#wanted_id"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#insync?"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#declare_fields"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#report_unresolved"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#insync?"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#insync?"
+      - "Puppet::Provider::GlpiRule::GlpiRule#insync?"
+      - "Puppet::Transport::Glpi#perform"
+      - "PuppetX::Glpi::ItemLinks#report_unresolved_links"
+      - "PuppetX::Glpi::Names#self.key"
+  DuplicateMethodCall:
+    # Repeated reads of a hash key, a memoized helper (transport) or a pure one
+    # (resource_key, natural_key). A local variable would not make these clearer,
+    # and in the safety code a reordered read is the larger risk. Time.now reads
+    # are distinct instants on purpose.
+    exclude:
+      - "/\\APuppet::Provider::GlpiBaseProvider#create\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#mark\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#objects\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#restore\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#shared_list\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#warn_unmarked\\z/"
+      - "/\\APuppet::Transport::Glpi#graphql\\z/"
+      - "/\\APuppet::Transport::Glpi#request\\z/"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#api_to_resource"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#insync?"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#links"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#member_plan"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#plan_message"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#sync_members"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#unique_member"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#unresolved_members"
+      - "Puppet::Provider::GlpiBaseProvider#append_marker"
+      - "Puppet::Provider::GlpiBaseProvider#comment_body"
+      - "Puppet::Provider::GlpiBaseProvider#find_unique"
+      - "Puppet::Provider::GlpiBaseProvider#guard_deletions"
+      - "Puppet::Provider::GlpiBaseProvider#insync?"
+      - "Puppet::Provider::GlpiBaseProvider#list_resources"
+      - "Puppet::Provider::GlpiBaseProvider#note_unmarked_twins"
+      - "Puppet::Provider::GlpiBaseProvider#refresh_shared_entry"
+      - "Puppet::Provider::GlpiBaseProvider#resolvable_entity"
+      - "Puppet::Provider::GlpiBaseProvider#restorable_trashed"
+      - "Puppet::Provider::GlpiBaseProvider#restore_trashed?"
+      - "Puppet::Provider::GlpiBaseProvider#self.glpi_type_name"
+      - "Puppet::Provider::GlpiBaseProvider#update_shared_list"
+      - "Puppet::Provider::GlpiBaseProvider#warn_trashed"
+      - "Puppet::Provider::GlpiBaseProvider#warn_unmarked_trashed"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#insync?"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#link_spec"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#plan_message"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#resource_to_api"
+      - "Puppet::Provider::GlpiCluster::GlpiCluster#insync?"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#api_to_resource"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#insync?"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#missing_computer"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#update"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#insync?"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#update"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#api_to_resource"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#definition_of"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#fetch_objects"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#field_plan"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#fields_state"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#listed_definitions"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#read_field"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#resolve_ref"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#link_spec"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#plan_message"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#wanted_contracts"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#api_to_resource"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#get"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#insync?"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#lookup_object"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#missing_item"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#update"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#parent_id"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#reread"
+      - "Puppet::Provider::GlpiRule::GlpiRule#before_target"
+      - "Puppet::Provider::GlpiRule::GlpiRule#create_path"
+      - "Puppet::Provider::GlpiRule::GlpiRule#move_above"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resolve_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resource_to_api"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_actions"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_criteria"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_rule"
+      - "Puppet::Transport::Glpi#connection_for"
+      - "Puppet::Transport::Glpi#fetch_token"
+      - "Puppet::Transport::Glpi#get_all"
+      - "Puppet::Transport::Glpi#initialize"
+      - "Puppet::Transport::Glpi#request_with_retries"
+      - "Puppet::Transport::Glpi#validate_path"
+      - "Puppet::Type::GlpiCustomAssetHooks#initialize"
+      - "Puppet::Type::GlpiCustomAssetTitle#hash2resource"
+      - "Puppet::Type::GlpiItemPlacementTitle#hash2resource"
+      - "Puppet::Type::GlpiTransportAutorequire#self.register"
+      - "PuppetX::Glpi::ItemLinks#item_links"
+      - "PuppetX::Glpi::ItemLinks#link_plan"
+      - "PuppetX::Glpi::ItemLinks#link_row"
+      - "PuppetX::Glpi::ItemLinks#write_links"
+      - "PuppetX::Glpi::Lookups#dropdown_id"
+      - "PuppetX::Glpi::Lookups#entity_attributes"
+      - "PuppetX::Glpi::Lookups#entity_id_by_tag"
+      - "PuppetX::Glpi::Lookups#entity_tag_of"
+      - "PuppetX::Glpi::Lookups#resolve_computer"
+      - "PuppetX::Glpi::Lookups#tree_id"
+      - "PuppetX::Glpi::Lookups#unique_computer"
+      - "PuppetX::Glpi::Lookups#wanted_entity"
+  FeatureEnvy:
+    # These translate a resource hash or a raw GLPI object into another form, or
+    # work on an HTTP response, so they refer to it more than to themselves.
+    exclude:
+      - "/\\APuppetX::Glpi::Lookups#tree_path\\z/"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#plan_message"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#refuse_unlinkable"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#unique_member"
+      - "Puppet::Provider::GlpiBaseProvider#module_settings"
+      - "Puppet::Provider::GlpiBaseProvider#reset_run_warnings"
+      - "Puppet::Provider::GlpiBaseProvider#to_int"
+      - "Puppet::Provider::GlpiBaseProvider#update_shared_list"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#link_spec"
+      - "Puppet::Provider::GlpiCluster::GlpiCluster#api_to_resource"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#get"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#item_path"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#object_key"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#read_field"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#resource_key"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#api_to_resource"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#get"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#insync?"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#object_key"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#parent_path_of"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#resource_key"
+      - "Puppet::Provider::GlpiRule::GlpiRule#create_path"
+      - "Puppet::Provider::GlpiRule::GlpiRule#criterion_hash"
+      - "Puppet::Provider::GlpiRule::GlpiRule#display_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#item_path"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resolve_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resource_to_api"
+      - "Puppet::Transport::Glpi#graphql_filter_argument"
+      - "Puppet::Transport::Glpi#parse_json"
+      - "Puppet::Transport::Glpi#validate_graphql!"
+      - "Puppet::Transport::Glpi#validate_path"
+      - "Puppet::Type::GlpiCustomAssetHooks#initialize"
+      - "Puppet::Type::GlpiCustomAssetTitle#hash2resource"
+      - "Puppet::Type::GlpiItemPlacementTitle#hash2resource"
+      - "Puppet::Type::GlpiTransportAutorequire::DeletionPlanCache#glpi_note_declared"
+      - "Puppet::Type::GlpiTransportAutorequire::InstancesFilter#glpi_key_of"
+      - "PuppetX::Glpi::ItemLinks#link_plan"
+      - "PuppetX::Glpi::ItemLinks#link_row"
+      - "PuppetX::Glpi::Lookups#embedded_id"
+      - "PuppetX::Glpi::Lookups#unique_computer"
+      - "PuppetX::Glpi::Lookups#wanted_entity"
+  InstanceVariableAssumption:
+    # Providers and their mixins keep caches and per-run state across the Resource
+    # API's callbacks, set by whichever callback runs first; lazy reads of it are
+    # the write-through cache and purge guard design.
+    exclude:
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance"
+      - "Puppet::Provider::GlpiBaseProvider"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation"
+      - "Puppet::Transport::Glpi"
+  ManualDispatch:
+    # Optional hooks and values of unknown class: a value that may be Sensitive, an
+    # error that may carry a status, a provider that may lack a type hook. In
+    # planned_deletions the check is the fail-closed test the purge guard rests on.
+    exclude:
+      - "Puppet::Provider::GlpiBaseProvider#reset_run_warnings"
+      - "Puppet::Provider::GlpiBaseProvider#self.shared_transport"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#read_entry"
+      - "Puppet::Transport::Glpi#unwrap"
+      - "Puppet::Type::GlpiApplianceMemberTypes#refresh_current_state"
+      - "Puppet::Type::GlpiCustomAssetHooks#refresh_current_state"
+      - "Puppet::Type::GlpiDomainHooks#refresh_current_state"
+      - "Puppet::Type::GlpiTransportAutorequire#self.declared_titles"
+      - "Puppet::Type::GlpiTransportAutorequire#self.planned_deletions"
+      - "Puppet::Type::GlpiTransportAutorequire::DeletionPlanHook#flush"
+      - "Puppet::Type::GlpiTransportAutorequire::InstancesFilter#glpi_key_of"
+  MissingSafeMethod:
+    # The validate_*! methods raise on bad input; there is no safe variant to offer.
+    exclude:
+      - "Puppet::Transport::Glpi"
+  ModuleInitialize:
+    # These modules are prepended to a generated type class and must wrap its
+    # initialize: the hook is the point of the module.
+    exclude:
+      - "Puppet::Type::GlpiCustomAssetHooks"
+      - "Puppet::Type::GlpiTransportAutorequire::DeletionPlanHook"
+  NestedIterators:
+    # Walking a list of objects per requested name or per scope; flattening these
+    # would only move the same nesting into a block variable.
+    exclude:
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#sync_members"
+      - "Puppet::Provider::GlpiBaseProvider#list_resources"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#fetch_objects"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#wanted_contracts"
+      - "Puppet::Provider::GlpiRule::GlpiRule#fetch_objects"
+      - "PuppetX::Glpi::ItemLinks#write_links"
+  NilCheck:
+    # nil is meaningful throughout: an undeclared attribute is not managed, and a
+    # missing object or an answer without an id must take a different path.
+    exclude:
+      - "/\\APuppet::Provider::GlpiBaseProvider#create\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#delete\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#update\\z/"
+      - "/\\APuppet::Transport::Glpi#request\\z/"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#insync?"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#links"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#record_link"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#resource_to_api"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#sync_members"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#wanted_members"
+      - "Puppet::Provider::GlpiBaseProvider#cacheable?"
+      - "Puppet::Provider::GlpiBaseProvider#comment_body"
+      - "Puppet::Provider::GlpiBaseProvider#covers?"
+      - "Puppet::Provider::GlpiBaseProvider#delete_properties_insync?"
+      - "Puppet::Provider::GlpiBaseProvider#deletions_done"
+      - "Puppet::Provider::GlpiBaseProvider#get"
+      - "Puppet::Provider::GlpiBaseProvider#guard_allowance"
+      - "Puppet::Provider::GlpiBaseProvider#guard_deletions"
+      - "Puppet::Provider::GlpiBaseProvider#guard_limits_text"
+      - "Puppet::Provider::GlpiBaseProvider#insync?"
+      - "Puppet::Provider::GlpiBaseProvider#note_unmarked_twins"
+      - "Puppet::Provider::GlpiBaseProvider#objects_cached?"
+      - "Puppet::Provider::GlpiBaseProvider#objects_current_for_run?"
+      - "Puppet::Provider::GlpiBaseProvider#observed"
+      - "Puppet::Provider::GlpiBaseProvider#requested_resources"
+      - "Puppet::Provider::GlpiBaseProvider#shared_list_cached?"
+      - "Puppet::Provider::GlpiBaseProvider#to_date"
+      - "Puppet::Provider::GlpiBaseProvider#transport"
+      - "Puppet::Provider::GlpiBaseProvider#update_shared_list"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#computers_state"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#insync?"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#resource_to_api"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#sync_computers"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#wanted_computers"
+      - "Puppet::Provider::GlpiCluster::GlpiCluster#insync?"
+      - "Puppet::Provider::GlpiCluster::GlpiCluster#resource_to_api"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#get"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#insync?"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#update"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#current_value"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#get"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#insync?"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#update"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#field_plan"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#fields_state"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#get"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#insync?"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#read_field"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#resource_to_api"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#api_to_resource"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#contracts_state"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#declare_contracts"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#insync?"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#resource_to_api"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#sync_contracts"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#get"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#insync?"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#update"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#get"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#insync?"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#parent_path_of"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#resource_to_api"
+      - "Puppet::Provider::GlpiRule::GlpiRule#cacheable?"
+      - "Puppet::Provider::GlpiRule::GlpiRule#create_path"
+      - "Puppet::Provider::GlpiRule::GlpiRule#display_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#insync?"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resolve_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resource_to_api"
+      - "Puppet::Provider::GlpiRule::GlpiRule#rules_path"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_rule"
+      - "Puppet::Transport::Glpi#fetch_token"
+      - "Puppet::Transport::Glpi#graphql_filter_argument"
+      - "Puppet::Transport::Glpi#validate_connection_info!"
+      - "PuppetX::Glpi::ItemLinks#item_links"
+      - "PuppetX::Glpi::Lookups#dropdown_id"
+      - "PuppetX::Glpi::Lookups#wanted_entity"
+      - "PuppetX::Glpi::Names#self.normalize"
+  RepeatedConditional:
+    # The base tests the adoption policy, the marker and a missing object again at
+    # each entry point (create, update, delete, insync?) on purpose: each guard must
+    # hold on its own. The others are small shape checks of a title or an answer.
+    exclude:
+      - "Puppet::Provider::GlpiBaseProvider"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation"
+      - "Puppet::Transport::Glpi"
+  TooManyConstants:
+    # API paths, limits and the patterns validating what reaches a GraphQL query.
+    exclude:
+      - "Puppet::Provider::GlpiBaseProvider"
+      - "Puppet::Transport::Glpi"
+  TooManyInstanceVariables:
+    # Connection settings and tokens, or the provider's caches and per-run state.
+    exclude:
+      - "Puppet::Provider::GlpiBaseProvider"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset"
+      - "Puppet::Transport::Glpi"
+  TooManyMethods:
+    # The base provider implements the contract every provider relies on and the
+    # others keep one small method per concern; splitting them would scatter the
+    # safety logic the base keeps in one reviewable place.
+    exclude:
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance"
+      - "Puppet::Provider::GlpiBaseProvider"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation"
+      - "Puppet::Provider::GlpiRule::GlpiRule"
+      - "Puppet::Transport::Glpi"
+  TooManyStatements:
+    # Linear sequences that read better whole: Resource API callbacks, mapping a
+    # resource to a request body, and the safety paths (purge guard, marker and
+    # adoption decisions, restore, read-back after a create, token and retry
+    # handling), where splitting would hide the order the checks run in.
+    # The transport constructor reads its settings one statement per key: Reek
+    # excludes initialize by default, but an explicit list replaces the default.
+    exclude:
+      - "/\\APuppet::Provider::GlpiBaseProvider#create\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#delete\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#objects\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#restore\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#shared_list\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#update\\z/"
+      - "/\\APuppet::Provider::GlpiBaseProvider#warn_unmarked\\z/"
+      - "/\\APuppet::Transport::Glpi#graphql\\z/"
+      - "/\\APuppet::Transport::Glpi#request\\z/"
+      - "/\\APuppetX::Glpi::Lookups#tree_path\\z/"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#insync?"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#member_plan"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#refuse_unlinkable"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#resolve_member"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#resource_to_api"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#sync_members"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#unresolved_members"
+      - "Puppet::Provider::GlpiAppliance::GlpiAppliance#wanted_members"
+      - "Puppet::Provider::GlpiBaseProvider#comment_body"
+      - "Puppet::Provider::GlpiBaseProvider#delete_properties_insync?"
+      - "Puppet::Provider::GlpiBaseProvider#drop_cached_lists"
+      - "Puppet::Provider::GlpiBaseProvider#find_unique"
+      - "Puppet::Provider::GlpiBaseProvider#guard_deletions"
+      - "Puppet::Provider::GlpiBaseProvider#insync?"
+      - "Puppet::Provider::GlpiBaseProvider#list_resources"
+      - "Puppet::Provider::GlpiBaseProvider#module_settings"
+      - "Puppet::Provider::GlpiBaseProvider#note_unmarked_twins"
+      - "Puppet::Provider::GlpiBaseProvider#plan_deletions"
+      - "Puppet::Provider::GlpiBaseProvider#refresh_cached_object"
+      - "Puppet::Provider::GlpiBaseProvider#refresh_changes"
+      - "Puppet::Provider::GlpiBaseProvider#refresh_shared_entry"
+      - "Puppet::Provider::GlpiBaseProvider#remember_written"
+      - "Puppet::Provider::GlpiBaseProvider#requested_resources"
+      - "Puppet::Provider::GlpiBaseProvider#resolvable_entity"
+      - "Puppet::Provider::GlpiBaseProvider#restorable_trashed"
+      - "Puppet::Provider::GlpiBaseProvider#self.shared_transport"
+      - "Puppet::Provider::GlpiBaseProvider#take_guard_baseline"
+      - "Puppet::Provider::GlpiBaseProvider#update_shared_list"
+      - "Puppet::Provider::GlpiBaseProvider#write"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#computers_state"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#insync?"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#link_spec"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#plan_message"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#resource_to_api"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#sync_computers"
+      - "Puppet::Provider::GlpiCertificate::GlpiCertificate#wanted_computers"
+      - "Puppet::Provider::GlpiCluster::GlpiCluster#insync?"
+      - "Puppet::Provider::GlpiCluster::GlpiCluster#resource_to_api"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#api_to_resource"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#get"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#insync?"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#missing_computer"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#refresh_changes"
+      - "Puppet::Provider::GlpiComputerPlacement::GlpiComputerPlacement#update"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#get"
+      - "Puppet::Provider::GlpiConfig::GlpiConfig#insync?"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#api_to_resource"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#fetch_objects"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#field_plan"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#fields_state"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#insync?"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#listed_definitions"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#note_definitions"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#read_field"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#report_unresolved"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#resolve_ref"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#resource_to_api"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#contract_plan"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#contracts_state"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#declare_contracts"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#insync?"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#link_spec"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#plan_message"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#resource_to_api"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#sync_contracts"
+      - "Puppet::Provider::GlpiDomain::GlpiDomain#wanted_contracts"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#get"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#insync?"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#lookup_object"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#missing_item"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#set"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#update"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#get"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#parent_id"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#parent_path_of"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#reread"
+      - "Puppet::Provider::GlpiRule::GlpiRule#before_target"
+      - "Puppet::Provider::GlpiRule::GlpiRule#display_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#insync?"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resolve_value"
+      - "Puppet::Provider::GlpiRule::GlpiRule#resource_to_api"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_actions"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_criteria"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sync_rule"
+      - "Puppet::Transport::Glpi#connection_for"
+      - "Puppet::Transport::Glpi#delete"
+      - "Puppet::Transport::Glpi#fetch_token"
+      - "Puppet::Transport::Glpi#get_all"
+      - "Puppet::Transport::Glpi#graphql_all"
+      - "Puppet::Transport::Glpi#initialize"
+      - "Puppet::Transport::Glpi#perform"
+      - "Puppet::Transport::Glpi#request_with_retries"
+      - "Puppet::Transport::Glpi#validate_connection_info!"
+      - "Puppet::Transport::Glpi#validate_graphql!"
+      - "Puppet::Transport::Glpi#validate_path"
+      - "Puppet::Type::GlpiTransportAutorequire#self.planned_deletions"
+      - "Puppet::Type::GlpiTransportAutorequire#self.register"
+      - "Puppet::Type::GlpiTransportAutorequire::InstancesFilter#instances"
+      - "PuppetX::Glpi::ItemLinks#item_links"
+      - "PuppetX::Glpi::ItemLinks#link_plan"
+      - "PuppetX::Glpi::ItemLinks#link_row"
+      - "PuppetX::Glpi::ItemLinks#report_unresolved_links"
+      - "PuppetX::Glpi::ItemLinks#write_links"
+      - "PuppetX::Glpi::Lookups#dropdown_id"
+      - "PuppetX::Glpi::Lookups#entity_id_by_tag"
+      - "PuppetX::Glpi::Lookups#entity_tag_of"
+      - "PuppetX::Glpi::Lookups#resolve_computer"
+      - "PuppetX::Glpi::Lookups#tree_id"
+      - "PuppetX::Glpi::Lookups#tree_paths"
+      - "PuppetX::Glpi::Names#self.normalize"
+  UtilityFunction:
+    # Format, coercion and mapping helpers that belong with their provider or mixin
+    # and may be overridden by it.
+    exclude:
+      - "Puppet::Provider::GlpiBaseProvider#absent_state"
+      - "Puppet::Provider::GlpiBaseProvider#cacheable?"
+      - "Puppet::Provider::GlpiBaseProvider#covers?"
+      - "Puppet::Provider::GlpiBaseProvider#object_key"
+      - "Puppet::Provider::GlpiBaseProvider#resource_key"
+      - "Puppet::Provider::GlpiBaseProvider#split_item_path"
+      - "Puppet::Provider::GlpiBaseProvider#to_bool"
+      - "Puppet::Provider::GlpiBaseProvider#to_date"
+      - "Puppet::Provider::GlpiBaseProvider#trashed?"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#cache_object"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#definition_of"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#field_text"
+      - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset#key_for"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#collection_path"
+      - "Puppet::Provider::GlpiItemPlacement::GlpiItemPlacement#resource_key"
+      - "Puppet::Provider::GlpiLocation::GlpiLocation#key_for"
+      - "Puppet::Provider::GlpiRule::GlpiRule#action_hash"
+      - "Puppet::Provider::GlpiRule::GlpiRule#collection_of"
+      - "Puppet::Provider::GlpiRule::GlpiRule#sorted"
+      - "Puppet::Transport::Glpi#apply_headers"
+      - "Puppet::Transport::Glpi#content_range_total"
+      - "Puppet::Transport::Glpi#error_detail"
+      - "Puppet::Transport::Glpi#now"
+      - "Puppet::Transport::Glpi#translate_failure"
+      - "Puppet::Transport::Glpi#type_hint"
+      - "Puppet::Transport::Glpi#unwrap"
+      - "PuppetX::Glpi::Lookups#dropdown_label"
+      - "PuppetX::Glpi::Lookups#embedded_label"
+
+# --- 3. Shared-base detectors, per location -------------------------------
+# DataClump and LongParameterList belong to section 1, and Reek cannot merge two
+# entries for one detector in `detectors`. `directories` is a separate mapping:
+# for files below a path it replaces that detector's configuration, so the
+# thresholds of section 1 are repeated here and only the named classes differ.
+directories:
+  "lib/puppet/provider":
+    DataClump:
+      max_copies: 3
+      exclude:
+        # (context, name), (context, should) and (context, path) are the Resource
+        # API's CRUD shape carried on into each provider's helpers, the same
+        # exception section 1 grants the Proxmox providers. A parameter object
+        # would change the signature of every helper of the safety code.
+        - "Puppet::Provider::GlpiAppliance::GlpiAppliance"
+        - "Puppet::Provider::GlpiBaseProvider"
+        - "Puppet::Provider::GlpiCertificate::GlpiCertificate"
+        - "Puppet::Provider::GlpiCustomAsset::GlpiCustomAsset"
+        - "Puppet::Provider::GlpiDomain::GlpiDomain"
+        - "Puppet::Provider::GlpiRule::GlpiRule"
+  "lib/puppet/transport":
+    DataClump:
+      max_copies: 3
+      exclude:
+        # Each HTTP verb helper shares (context, path, body, query), as section 1
+        # says of the Proxmox transports.
+        - "Puppet::Transport::Glpi"
+    LongParameterList:
+      max_params: 5
+      exclude:
+        # The one request boundary and its retry loop; keywords keep the call
+        # sites clear, and token, retry and resend handling live here.
+        - "Puppet::Transport::Glpi#request"
+        - "Puppet::Transport::Glpi#request_with_retries"
