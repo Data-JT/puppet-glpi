@@ -1,0 +1,10 @@
+# frozen_string_literal: true
+
+# Unit test bundle for the OpenVox 9 CI job. The PDK has no OpenVox 9 runtime yet.
+source 'https://rubygems.org'
+
+gem 'deep_merge'
+gem 'json', '< 2.10'
+gem 'openvox', '~> 9.3'
+gem 'voxpupuli-test', '>= 13'
+gem 'webmock'
