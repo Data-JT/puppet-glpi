@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `puppetlabs/stdlib` range now includes 10.x, the first release that allows Puppet 9, so
   the module installs on Puppet 9 as `metadata.json` claims.
 
+### Changed
+
+- The Quality workflow also runs the unit tests on OpenVox 9.
+- Data JT banner and an About section in the README; `metadata.json` names Data JT as the
+  author.
+
 ## [0.1.0] - 2026-11-06
 
 Initial release.

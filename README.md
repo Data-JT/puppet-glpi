@@ -1,3 +1,10 @@
+<a href="https://www.data-jt.de">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Data-JT/.github/main/profile/banner-dark.svg">
+    <img alt="Data JT" src="https://raw.githubusercontent.com/Data-JT/.github/main/profile/banner-light.svg" width="420">
+  </picture>
+</a>
+
 # datajt-glpi
 
 Manage GLPI inventory objects as Puppet code, through the GLPI REST API v2.
@@ -12,6 +19,7 @@ Manage GLPI inventory objects as Puppet code, through the GLPI REST API v2.
 6. [Limitations](#limitations)
 7. [Contributing](#contributing)
 8. [License](#license)
+9. [About Data JT](#about-data-jt)
 
 ## Description
 
@@ -74,9 +82,8 @@ come from manifests or from Hiera via `glpi::resources`.
 
 ## Requirements
 
-- Puppet or OpenVox 8 or 9 (`>= 8.0.0 < 10.0.0`). Testing is currently done on 8 (CI and
-  production); on 9 the unit tests pass (OpenVox 9.3), but there is no CI job or production
-  use yet. Forge dependency: `puppetlabs/stdlib`.
+- Puppet or OpenVox 8 or 9 (`>= 8.0.0 < 10.0.0`). Testing is currently done on 8 (CI and production); on 9 the unit tests also run in CI
+  (OpenVox 9.3), but there is no production use yet. Forge dependency: `puppetlabs/stdlib`.
 - GLPI 11 with API v2 enabled. The legacy `apirest.php` API is not used.
 - Debian 12 or 13.
 - An OAuth client and a service user with a recursive profile on the root entity;
@@ -228,3 +235,10 @@ for reporting vulnerabilities.
 ## License
 
 Apache-2.0, see [LICENSE](https://github.com/Data-JT/puppet-glpi/blob/master/LICENSE).
+
+## About Data JT
+
+This module is built and maintained by [Data JT](https://www.data-jt.de), an IT and data
+protection consultancy near Freiburg, Germany. All our modules are on the
+[Puppet Forge](https://forge.puppet.com/modules/datajt). For anything beyond issues and pull
+requests, [get in touch](https://www.data-jt.de/kontakt).
