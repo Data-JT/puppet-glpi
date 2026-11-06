@@ -1,6 +1,6 @@
 {
   "name": "datajt-glpi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Data JT",
   "summary": "Manages GLPI 11 objects declaratively via the GLPI REST API v2.",
   "license": "Apache-2.0",

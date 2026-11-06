@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-06
+
 ### Fixed
 
 - The `puppetlabs/stdlib` range now includes 10.x, the first release that allows Puppet 9, so
@@ -57,5 +59,6 @@ Initial release.
 - URL, path and account parameters of the classes are type-checked (http(s) URLs, absolute
   paths, plain account names or numeric uids).
 
-[Unreleased]: https://github.com/Data-JT/puppet-glpi/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Data-JT/puppet-glpi/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Data-JT/puppet-glpi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Data-JT/puppet-glpi/releases/tag/v0.1.0
